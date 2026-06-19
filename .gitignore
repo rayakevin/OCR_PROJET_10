@@ -3,15 +3,4 @@
 __pycache__/
 *.pyc
 
-# Données & artefacts lourds (régénérables)
-data/
-outputs/
-*.npy
-*.pkl
-*.pth
 
-# Jupyter
-.ipynb_checkpoints/
-
-# Divers
-.DS_Store

@@ -36,7 +36,7 @@
 - **Une idée par slide.** Titre = **un message**, pas un thème (« Le clustering ne sépare pas la pathologie », pas « Clustering »).
 - **Peu de texte**, gros visuels lisibles. Exporte tes figures en **PNG haute résolution** depuis Jupyter : clic droit sur la figure → *Enregistrer l'image*, ou ajoute en fin de cellule `fig.savefig("reports/figures/nom.png", dpi=150, bbox_inches="tight")`. Range-les dans `reports/figures/`.
 - **Annoter les figures clés** : une flèche / un cercle rouge sur la zone qui compte (ex. les bords sur la carte de différence, le cluster « mélangé » sur le t-SNE). L'œil de Clara doit aller direct au bon endroit.
-- **Chiffres clés en gros** (ARI 0.12, recall 0.93, 0.00125 €/image). Un chiffre par slide qui « claque ».
+- **Chiffres clés en gros** (ARI 0.535, recall 0.93, 0.00125 €/image). Un chiffre par slide qui « claque ».
 - **Palette sobre et cohérente** ; numérote les slides ; mets une mini-frise du pipeline en bas de chaque slide technique pour situer où on en est.
 
 ---
@@ -65,37 +65,37 @@
 ### Slide 4 — EDA : qualité & biais
 - **Visuel** : **la carte de différence** (image moyenne cancer / image moyenne normal / différence) — *de loin* le visuel le plus parlant.
   → **Notebook 1 › section EDA › cellule « image moyenne + carte de différence »** (3 sous-images côte à côte).
-  En vignette secondaire : un chiffre « **186 doublons, dont 32 fuites corrigées** ».
-- **Script** : « J'ai d'abord audité mes données. Deux constats. Un : **186 images en doublon exact**, dont 32 images annotées clonées dans le jeu non annoté — une **fuite** que j'ai corrigée par dédoublonnage, sinon mon évaluation aurait été biaisée. Deux, plus subtil : en moyennant les images par classe et en les soustrayant *(montre la carte)*, la différence **s'allume sur les bords**, pas dans le cerveau. Autrement dit, ce qui sépare le plus mes deux classes, c'est le **cadrage**, pas la tumeur. C'est un **risque de biais** que je garde en tête pour la suite. »
+  En vignette secondaire : un chiffre « **225 doublons/quasi-doublons retirés, 0 fuite restante** ».
+- **Script** : « J'ai d'abord audité mes données. Deux constats. Un : il y avait des doublons exacts et des quasi-doublons perceptuels entre le jeu annoté et le jeu non annoté. J'ai donc dédoublonné avec **MD5 + phash**, ce qui réduit le dataset de 1 506 à **1 281 images** et laisse **0 fuite détectée**. Deux, plus subtil : en moyennant les images par classe et en les soustrayant *(montre la carte)*, la différence **s'allume sur les bords**, pas dans le cerveau. Autrement dit, ce qui sépare le plus mes deux classes, c'est le **cadrage**, pas la tumeur. C'est un **risque de biais** que je garde en tête pour la suite. »
 - **Transition** : « Ces données propres, je les transforme maintenant en features exploitables. »
 - **Design** : entoure en rouge les bords lumineux de la carte de différence + annote « biais de cadrage ».
 
 ### Slide 5 — Extraction de features (transfer learning)
-- **Visuel** : un mini-schéma « image 224×224 → ResNet50 gelé (tête retirée) → vecteur 2048 » ; chiffre « **1 410 × 2 048** ».
+- **Visuel** : un mini-schéma « image 224×224 → ResNet50 gelé (tête retirée) → vecteur 2048 » ; chiffre « **1 281 × 2 048** ».
 - **Script** : « Je n'ai ni le budget ni assez de données pour entraîner un réseau de zéro. J'utilise donc le **transfer learning** : un ResNet50 pré-entraîné sur ImageNet, dont je **gèle** les couches et **retire la tête** de classification. Chaque image devient un vecteur de 2 048 caractéristiques. C'est rapide, gratuit en annotation, et ça réutilise un savoir visuel généraliste. »
 - **Transition** : « Avec ces vecteurs, je cherche des regroupements naturels. »
 - **Design** : très visuel, peu de texte ; insiste oralement sur « gelé » et « gratuit en annotation » (ça prépare le scaling).
 
-### Slide 6 — Clustering : le constat clé
-- **Visuel** : **les deux nuages t-SNE côte à côte** (clusters K-Means vs vrais labels) + **ARI ≈ 0.12** en gros.
-  → **Notebook 1 › section 3.5 › cellule de visualisation (2 scatterplots)** et le print **ARI** de la cellule juste avant.
-- **Script** : « Je réduis la dimension par PCA, puis je teste **deux** algorithmes de clustering, K-Means et DBSCAN — réglé proprement via la courbe des k-distances. Verdict commun : **les clusters ne se superposent pas à la pathologie**. L'ARI, qui mesure l'accord avec les vrais labels, est de **0,12** — faible. *(montre les nuages)* À gauche mes clusters, à droite la vraie étiquette : ça ne coïncide pas. Concrètement, mon étiquetage faible **ne récupère que ~40 % des cancers**. Ce n'est pas un échec : c'est cohérent avec le biais de cadrage vu en EDA — le clustering capte surtout le type d'acquisition, pas la tumeur. »
+### Slide 6 — Clustering : benchmark, pas choix par défaut
+- **Visuel** : **les trois nuages t-SNE** (K-Means / meilleur clustering / vrais labels) + **ARI best ≈ 0.535** en gros.
+  → **Notebook 1 › section 3.5 › visualisation 3 panneaux** et table de benchmark clustering.
+- **Script** : « J'ai renforcé le benchmark : K-Means, DBSCAN sur grille d'eps, agglomératif, Gaussian Mixture et spectral clustering. K-Means seul était faible — ARI ≈ **0,13** et seulement ~40 % de recall cancer en vote majoritaire. Mais le meilleur candidat, **Agglomerative sur PCA100**, atteint **ARI ≈ 0,535** et ~0,87 de balanced accuracy sur les labels forts. C'est plus solide pour générer des pseudo-labels, mais ce n'est pas une vérité médicale : ça reste évalué sur moins de 100 labels et exposé aux biais de cadrage. »
 - **Transition** : « La question devient : ces labels faibles, même imparfaits, peuvent-ils quand même aider un modèle ? C'est l'objet du semi-supervisé. »
-- **Design** : place une flèche sur le cluster « mélangé » du t-SNE ; ARI 0.12 en énorme à côté.
+- **Design** : montre K-Means comme baseline faible, puis le meilleur clustering. Mets « ARI 0.535 » en gros, et garde une note « labels faibles ≠ vérité terrain ».
 
 ### Slide 7 — Approche semi-supervisée (méthode + résultats)
 - **Visuel** : à gauche un schéma `Jeu faible (pseudo-labels) → pré-entraînement → Jeu fort → affinage → Test` ; à droite **la table comparative** des métriques.
   → **Notebook 2 › section 4.5 › cellule de la table `comparaison`** (accuracy / precision / recall / F1 / ROC-AUC).
-- **Script** : « Je compare deux modèles entraînés sur exactement le **même jeu de test, jamais vu**. Le modèle **supervisé** n'apprend que sur mes 69 images fortement annotées. Le modèle **semi-supervisé** se pré-entraîne d'abord sur les images pseudo-labellisées par clustering, puis s'affine sur les vrais labels. *(montre la table)* Les deux sont **bons** — recall cancer 0,93, AUC 0,99 — grâce au transfer learning. »
+- **Script** : « Je compare deux modèles entraînés sur exactement le **même jeu de test, jamais vu**. Le modèle **supervisé** n'apprend que sur mes 68 images fortement annotées. Le modèle **semi-supervisé** se pré-entraîne d'abord sur les pseudo-labels benchmarkés, puis s'affine sur les vrais labels. Sur le split principal, les deux ont le même recall cancer : **0,93**. Le supervisé garde toutefois une meilleure AUC : **0,99** contre **0,94**. »
 - **Transition** : « Mais regardez la comparaison de près : le semi-supervisé n'apporte rien. Pourquoi ? »
 - **Design** : surligne la ligne **recall (cancer)** et la colonne du supervisé. Garde la table lisible (arrondis à 2 décimales).
 
 ### Slide 8 — Résultat clé & sa justification
 - **Visuel** : **les deux matrices de confusion** (A vs B) côte à côte ; un encadré « Pourquoi ? ».
   → **Notebook 2 › section 4.5 › cellule des matrices de confusion**. (Optionnel : la courbe ROC en annexe.)
-- **Script** : « Le semi-supervisé **n'améliore pas** le supervisé — il fait même une fausse alerte de plus. Et l'écart se résume à **une seule image sur 30**, donc dans le bruit. Pourquoi pas de gain ? **Deux raisons.** Un : mon baseline supervisé **sature déjà** la tâche — le transfer learning suffit avec 69 images. Deux : mes pseudo-labels sont **trop bruités** — on l'a vu, le clustering ne récupère que 40 % des cancers — donc le pré-entraînement n'apporte pas de signal fiable, et l'affinage sur les vrais labels l'écrase. **Le facteur limitant, ce n'est pas le volume de données, c'est la qualité du clustering.** »
+- **Script** : « Le semi-supervisé **n'améliore pas clairement** le supervisé. Sur 3 splits répétés, le supervisé est en moyenne à **accuracy 0,91 / AUC 0,97**, contre **0,87 / 0,95** pour le semi-supervisé. Le semi-supervisé garde un recall moyen élevé, mais il perd en précision. Pourquoi ? Deux raisons. Un : le transfer learning capte déjà un signal fort avec peu de labels. Deux : les pseudo-labels restent imparfaits, même après benchmark. Donc je ne vends pas le semi-supervisé comme un gain prouvé ; je le présente comme une piste expérimentale à stabiliser. »
 - **Transition** : « Ce constat est précisément ce qui guide ma recommandation pour passer à l'échelle. »
-- **Design** : sous chaque matrice, écris en clair « 2 erreurs / 30 » et « 3 erreurs / 30 ». Encadré « Pourquoi ? » avec les 2 puces.
+- **Design** : mets la table du split principal + un petit encart « stabilité 3 splits ». Encadré « Pourquoi ? » avec les 2 puces.
 
 ### Slide 9 — Passage à l'échelle : le verdict économique
 - **Visuel** : **le calcul en gros** : `5 000 € ÷ 4 000 000 images = 0,00125 €/image`. À côté : « annotation experte ≈ plusieurs dizaines de centimes → des **centaines de milliers d'€** ».
@@ -105,7 +105,7 @@
 
 ### Slide 10 — Passage à l'échelle : l'architecture recommandée
 - **Visuel** : un schéma en 3 briques : **1. Features + inférence à l'échelle** (compute ≈ qq €) · **2. Active learning** (annoter seulement les cas incertains) · **3. Vérification humaine ciblée**. + un encart « Conditions ».
-- **Script** : « Trois briques. Un : l'**extraction de features et l'inférence** d'un modèle sur 4 millions d'images coûtent une poignée d'euros de GPU — négligeable. Deux : plutôt que le clustering, qu'on a vu peu fiable, j'investis le budget dans une **annotation experte ciblée par active learning** — on ne fait annoter que les cas où le modèle hésite. À quelques dizaines de centimes l'annotation, **5 000 € achètent plusieurs milliers d'annotations bien choisies** ; rappel : avec seulement 100 labels, on atteignait déjà recall 0,93 ! Trois : **vérification humaine systématique des cas positifs**, sécurité patient oblige. Conditions : c'est un **outil de triage R&D, pas un diagnostic** ; seuil calibré sur le recall ; validation clinique ; monitoring de dérive ; ré-entraînement. »
+- **Script** : « Trois briques. Un : l'**extraction de features et l'inférence** d'un modèle sur 4 millions d'images coûtent une poignée d'euros de GPU — négligeable. Deux : je n'utiliserais pas le clustering seul comme source de vérité ; j'investis le budget dans une **annotation experte ciblée par active learning** — les cas incertains, les clusters ambigus et les cas positifs. À quelques dizaines de centimes l'annotation, **5 000 € achètent plusieurs milliers d'annotations bien choisies**. Trois : **vérification humaine systématique des cas positifs**, sécurité patient oblige. Conditions : outil de triage R&D, pas diagnostic ; seuil calibré sur le recall ; validation clinique ; monitoring de dérive ; ré-entraînement. »
 - **Transition** : « En résumé, chacun de mes choix techniques répond à une contrainte métier. »
 - **Design** : 3 briques numérotées avec icônes ; encadré « Conditions » en bas. C'est **LA** slide à soigner.
 
@@ -117,14 +117,14 @@
 - **Design** : tableau propre, une ligne = une décision. Aère.
 
 ### Slide 12 — Limites & conditions
-- **Visuel** : liste courte : test petit (30 img) → validation croisée ; performance plafonnée par la qualité du clustering ; **triage R&D ≠ diagnostic** ; validation clinique + monitoring requis.
-- **Script** : « Je reste lucide. Mon jeu de test est petit — 30 images — donc je conditionne mes chiffres et je recommanderais une **validation croisée** pour les stabiliser. La performance est plafonnée par la qualité du clustering, pas par le volume. Et surtout : ceci est un **outil de triage de recherche, jamais un dispositif de diagnostic** — toute mise en usage exige une validation clinique et une surveillance. »
+- **Visuel** : liste courte : test petit (30 img) → splits répétés ; raccourcis intensité/cadrage ; pseudo-labels imparfaits ; **triage R&D ≠ diagnostic**.
+- **Script** : « Je reste lucide. Mon jeu de test est petit — 30 images — donc j'ai ajouté des splits répétés et des baselines. Un point important : des features simples d'image atteignent déjà **AUC ≈ 0,92**, donc une partie du signal peut venir du cadrage ou de l'intensité, pas uniquement de la tumeur. Et surtout : ceci est un **outil de triage de recherche, jamais un dispositif de diagnostic** — toute mise en usage exige une validation clinique et une surveillance. »
 - **Transition** : « Je conclus. »
 - **Design** : icône « ⚠️ » discrète ; ne surcharge pas — 4 puces max.
 
 ### Slide 13 — Conclusion & recommandation
 - **Visuel** : 3 messages : ✔ pipeline complet livré · ✔ métrique et résultats justifiés · ➡️ **scaling faisable sous conditions** (transfer learning + active learning + vérification).
-- **Script** : « En une phrase : oui, le passage à l'échelle est **faisable**, mais à condition de **ne pas chercher à tout labelliser**. La valeur n'est pas dans le clustering non supervisé — qu'on a démontré insuffisant — mais dans un **petit jeu d'annotations expertes bien choisi**, exploité par transfer learning et active learning. Mon livrable : un pipeline reproductible, une comparaison honnête, et une recommandation chiffrée. Je suis prêt pour vos questions. »
+- **Script** : « En une phrase : oui, le passage à l'échelle est **faisable**, mais à condition de **ne pas chercher à tout labelliser** et de ne pas confondre pseudo-labels et labels médicaux. La valeur est dans le couple **transfer learning + active learning + validation experte ciblée**. Mon livrable : un pipeline reproductible, un benchmark plus robuste, une comparaison honnête, et une recommandation chiffrée. Je suis prêt pour vos questions. »
 - **Design** : 3 lignes, beaucoup de blanc. Termine sur la recommandation, pas sur les limites.
 
 ---
@@ -136,7 +136,8 @@
 - **A2** — Courbe des k-distances (justifie le réglage de DBSCAN) → *Notebook 1 › section clustering › cellule k-distances*.
 - **A3** — Histogrammes d'intensité par classe + scatter luminosité×contraste → *Notebook 1 › EDA*.
 - **A4** — Visualisation de paires de doublons / fuites → *Notebook 1 › EDA › cellule doublons*.
-- **A5** — Détail du dédoublonnage (1506 → 1410, étanchéité = 0).
+- **A5** — Détail du dédoublonnage (1506 → 1281, étanchéité MD5 + phash = 0).
+- **A6** — Table benchmark clustering + baselines supervisées → *Notebook 1 › benchmark clustering* et *Notebook 2 › benchmarks additionnels*.
 
 ---
 
@@ -146,16 +147,16 @@
 
 - **« Pourquoi ResNet et pas un autre modèle / from scratch ? »**
   → Trop peu de données pour entraîner de zéro (sur-apprentissage) ; le transfer learning réutilise un savoir visuel et coûte zéro annotation. ResNet est un standard robuste et léger à servir.
-- **« Un ARI de 0,12, c'est un échec ? »**
-  → Non, c'est un **résultat informatif** : il prouve que la séparation visuelle dominante n'est pas la pathologie mais le cadrage/l'acquisition (cf. carte de différence). C'est ce qui motive la suite.
-- **« Pourquoi le semi-supervisé n'aide pas ? »**
-  → Baseline déjà saturé (transfer learning) **+** pseudo-labels qui ratent 60 % des cancers. Le facteur limitant est la qualité du clustering, pas le volume.
+- **« Pourquoi ne pas garder K-Means comme pseudo-labels ? »**
+  → Parce que le benchmark montre qu'il est moins bon : K-Means est à **ARI ≈ 0,13**, alors que l'agglomératif PCA100 atteint **ARI ≈ 0,535** sur les labels forts. Je garde K-Means comme baseline, pas comme meilleur choix.
+- **« Pourquoi le semi-supervisé ne domine pas ? »**
+  → Baseline déjà forte grâce au transfer learning **+** pseudo-labels encore imparfaits. Sur 3 splits, le supervisé garde une meilleure accuracy/AUC moyenne ; le semi-supervisé reste une piste expérimentale, pas un gain établi.
 - **« Ton test fait 30 images, c'est fiable ? »**
-  → Non, c'est petit, je l'assume — d'où la validation croisée en perspective. L'écart entre mes deux modèles (1 image) est dans le bruit ; je ne sur-interprète pas.
+  → C'est petit, donc je ne sur-interprète pas un split. J'ai ajouté des baselines en validation croisée répétée et une comparaison CNN sur 3 splits pour mesurer la stabilité.
 - **« Pourquoi le recall et pas l'accuracy ? »**
   → Parce que rater un cancer (faux négatif) est l'erreur la plus grave. L'accuracy masquerait des faux négatifs sur un jeu déséquilibré.
 - **« Comment garantis-tu l'absence de fuite ? »**
-  → Dédoublonnage exact + quasi (MD5 + phash), vérification « 0 empreinte commune » entre annoté et non annoté, et test issu uniquement du jeu fort, jamais vu à l'entraînement.
+  → Dédoublonnage exact + quasi (MD5 + phash), vérification « 0 hash commun » et « 0 paire phash ≤ 5 » entre annoté et non annoté, et test issu uniquement du jeu fort, jamais vu à l'entraînement.
 - **« Le scaling est-il vraiment faisable ? »**
   → Oui **sous conditions** : compute négligeable + budget concentré sur l'annotation ciblée (active learning) + vérification humaine + validation clinique. Pas l'annotation exhaustive.
 - **« Que ferais-tu avec plus de temps/budget ? »**
@@ -168,5 +169,5 @@
 - [ ] Recommandations techniques pour le déploiement à grande échelle (4 M images, 5 000 €) → slides 9-10
 - [ ] Lien choix techniques ↔ contraintes métier (volume, budget, temps) → slide 11
 - [ ] Arguments préparés pour justifier choix techniques **et** métier → section 4
-- [ ] Cohérence résultats notebooks ↔ recommandations → mêmes chiffres partout (ARI 0.12, recall 0.93, 0,00125 €/image)
+- [ ] Cohérence résultats notebooks ↔ recommandations → mêmes chiffres partout (ARI 0.535, recall 0.93, 0,00125 €/image)
 - [ ] ≤ 15 slides (13 + annexes) · durée 15 min (±5)
