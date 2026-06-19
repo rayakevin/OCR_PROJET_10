@@ -3,4 +3,6 @@
 __pycache__/
 *.pyc
 
-
+# Ressources locales / cahier des charges
+cahier_des_charges/
+ressource_cours/
