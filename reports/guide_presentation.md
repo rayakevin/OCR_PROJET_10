@@ -36,7 +36,7 @@
 - **Une idée par slide.** Titre = **un message**, pas un thème (« Le clustering ne sépare pas la pathologie », pas « Clustering »).
 - **Peu de texte**, gros visuels lisibles. Exporte tes figures en **PNG haute résolution** depuis Jupyter : clic droit sur la figure → *Enregistrer l'image*, ou ajoute en fin de cellule `fig.savefig("reports/figures/nom.png", dpi=150, bbox_inches="tight")`. Range-les dans `reports/figures/`.
 - **Annoter les figures clés** : une flèche / un cercle rouge sur la zone qui compte (ex. les bords sur la carte de différence, le cluster « mélangé » sur le t-SNE). L'œil de Clara doit aller direct au bon endroit.
-- **Chiffres clés en gros** (ARI clustering 0.535, ARI consensus 0.875, self-training 87 % du pool à seuil 0.95, recall semi-supervisé 1.00, 0.00125 €/image). Un chiffre par slide qui « claque ».
+- **Chiffres clés en gros** (ARI clustering 0.535, ARI consensus 0.875, self-training 93,3 % du pool à seuil 0.95, recall semi-supervisé 1.00, 0.00125 €/image). Un chiffre par slide qui « claque ».
 - **Palette sobre et cohérente** ; numérote les slides ; mets une mini-frise du pipeline en bas de chaque slide technique pour situer où on en est.
 
 ---
@@ -93,21 +93,66 @@
 ### Slide 8 — Résultat clé & sa justification
 - **Visuel** : **les deux matrices de confusion** (A vs B) côte à côte ; un encadré « Pourquoi ? ».
   → **Notebook 2 › section 4.5 › cellule des matrices de confusion**. (Optionnel : la courbe ROC en annexe.)
-- **Script** : « Le semi-supervisé **n'améliore pas la performance globale**, mais il améliore le recall. Sur 3 splits répétés, le supervisé est à **accuracy 0,91 / AUC 0,97 / recall 0,91**, contre **accuracy 0,86 / AUC 0,96 / recall 0,98** pour le semi-supervisé. J'ai aussi testé un **self-training itératif leakage-safe** : à seuil strict **0,95**, il pseudo-labélise en moyenne **87 %** du pool sans améliorer le SVC supervisé ; en descendant les seuils, on couvre **95-96 %**, mais les métriques baissent. Donc la bonne recommandation n'est pas "tout pseudo-labéliser", mais "pseudo-labéliser hautement confiant, puis annoter les cas ambigus". »
+- **Script** : « Le semi-supervisé **n'améliore pas la performance globale**, mais il améliore le recall. Sur 3 splits répétés, le supervisé est à **accuracy 0,91 / AUC 0,97 / recall 0,91**, contre **accuracy 0,86 / AUC 0,96 / recall 0,98** pour le semi-supervisé. J'ai aussi testé un **self-training itératif leakage-safe** : à seuil strict **0,95**, il pseudo-labélise en moyenne **93,3 %** du pool sans améliorer le SVC supervisé ; en descendant les seuils (progressif), on couvre **97,2 %**, mais les métriques baissent. Donc la bonne recommandation n'est pas "tout pseudo-labéliser", mais "pseudo-labéliser hautement confiant, puis annoter les cas ambigus". »
 - **Transition** : « Ce constat est précisément ce qui guide ma recommandation pour passer à l'échelle. »
 - **Design** : mets la table du split principal + un petit encart « stabilité 3 splits ». Encadré « Pourquoi ? » avec les 2 puces.
 
 ### Slide 9 — Passage à l'échelle : le verdict économique
-- **Visuel** : **le calcul en gros** : `5 000 € ÷ 4 000 000 images = 0,00125 €/image`. À côté : « annotation experte ≈ plusieurs dizaines de centimes → des **centaines de milliers d'€** ».
-- **Script** : « Clara, ta question : 4 millions d'images, 5 000 € — faisable ? Posons le calcul. Ça fait **0,00125 € par image**. Or une annotation par un radiologue coûte, même au plus optimiste, quelques dizaines de centimes : annoter les 4 millions, c'est **des centaines de milliers d'euros**. Donc **annoter tout à la main est exclu** — on est à ~1 000 fois le budget. »
+- **Visuel** : **le calcul en gros** : `5 000 € ÷ 4 000 000 images = 0,00125 €/image`. À côté : « annotation clinique ≈ **0,5-5 €/image** → annoter tout = **2 à 20 M€** ».
+- **Script** : « Clara, ta question : 4 millions d'images, 5 000 € — faisable ? Posons le calcul. Le budget, c'est **0,00125 € par image**. Or une annotation par un radiologue coûte, selon l'expertise, **0,5 à 5 € la pièce** — soit **400 à 4 000 fois plus**. Annoter les 4 millions à la main, ce serait **2 à 20 millions d'euros**. Donc **annoter tout à la main est exclu** — des centaines à des milliers de fois le budget. »
 - **Transition** : « Mais "impossible à la main" ne veut pas dire "impossible". Voici l'architecture que je recommande. »
 - **Design** : le 0,00125 €/image en ÉNORME. Un pictogramme « budget » barré pour l'annotation manuelle.
 
 ### Slide 10 — Passage à l'échelle : l'architecture recommandée
-- **Visuel** : un schéma en 3 briques : **1. Features + inférence à l'échelle** (compute ≈ qq €) · **2. Active learning** (annoter seulement les cas incertains) · **3. Vérification humaine ciblée**. + un encart « Conditions ».
-- **Script** : « Trois briques. Un : l'**extraction de features et l'inférence** d'un modèle sur 4 millions d'images coûtent une poignée d'euros de GPU — négligeable. Deux : je n'utiliserais pas le clustering seul comme source de vérité ; j'investis le budget dans une **annotation experte ciblée par active learning** — les cas incertains, les clusters ambigus et les cas positifs. À quelques dizaines de centimes l'annotation, **5 000 € achètent plusieurs milliers d'annotations bien choisies**. Trois : **vérification humaine systématique des cas positifs**, sécurité patient oblige. Conditions : outil de triage R&D, pas diagnostic ; seuil calibré sur le recall ; validation clinique ; monitoring de dérive ; ré-entraînement. »
-- **Transition** : « En résumé, chacun de mes choix techniques répond à une contrainte métier. »
-- **Design** : 3 briques numérotées avec icônes ; encadré « Conditions » en bas. C'est **LA** slide à soigner.
+- **Visuel** : un schéma en 3 briques **chiffrées** :
+  **1. Features + inférence à l'échelle** — `4 M ÷ ~1 000 img/s ≈ 1 h GPU ≈ 1-2 €` · `~33 Go de features` · **< 0,1 % du budget** ·
+  **2. Active learning** — `5 000 € ÷ 0,5-5 €/label = 1 000 à 10 000 annotations ciblées` (≈ ×2-3 vs aléatoire) ·
+  **3. Vérification humaine des positifs** — coût **opérationnel** ∝ taux de positifs (~40 000 revues à 1 %).
+  + un encart « Conditions ».
+- **Script** : « Trois briques, et je les chiffre.
+  **Un — le compute n'est pas le problème.** Extraire les features ResNet50 et inférer sur 4 millions d'images, c'est de l'ordre de **1 000 images/seconde** sur un GPU standard, soit **~1 heure de calcul, autour de 1 à 2 €** ; les vecteurs pèsent **~33 Go**, stockage négligeable. Le compute, c'est donc **moins de 0,1 % des 5 000 €**. Ancrage concret : j'ai déjà extrait 1 281 vecteurs ici, ça tient dans **10 Mo** — l'extrapolation est linéaire.
+  **Deux — tout le budget va à l'annotation, mais ciblée.** Je n'utilise pas le clustering seul comme vérité. Une annotation médicale coûte, selon l'expertise, **0,5 à 5 € la pièce** : les 5 000 € achètent donc **~1 000 à 10 000 labels** — et choisis par **active learning**, ils valent **2 à 3 fois** des labels tirés au hasard. Pourquoi c'est indispensable : mon self-training laisse **~3 % du pool en zone ambiguë** (97,2 % couverts, mesuré NB2) ; à 4 millions d'images, ça fait **~120 000 cas incertains**, dont le budget n'annote au mieux que **quelques milliers**. On ne peut donc pas annoter tout l'ambigu : il faut **prioriser les cas les plus informatifs**.
+  **Trois — vérification humaine systématique des positifs**, sécurité patient oblige. C'est un coût **opérationnel récurrent**, distinct des 5 000 € de construction : à ~1 % de positifs sur 4 M, c'est **~40 000 cas à revoir**. Le seuil est calibré haut sur le **recall** : on accepte des fausses alertes que l'humain filtre, **jamais un cancer raté non vu**.
+  Conditions : outil de triage R&D, pas diagnostic ; seuil calibré recall ; validation clinique ; monitoring de dérive ; ré-entraînement. »
+- **Transition** : « En résumé, chacun de mes choix techniques répond à une contrainte métier — chiffres à l'appui. »
+- **Design** : 3 briques numérotées avec icônes, **un chiffre-choc par brique** (`< 0,1 %` · `1 000-10 000 labels` · `~40 000 revues`) ; encadré « Conditions » en bas. C'est **LA** slide à soigner. ⚠️ Présente ces nombres comme **ordres de grandeur avec hypothèses** (débit GPU, €/label, taux de positifs) — un ordre de grandeur défendable bat un chiffre faussement précis.
+
+### Slide 10bis — Le funnel : 4 M non labellisées → 4 M labellisées pour 5 000 €
+- **Visuel** : **un entonnoir / boucle active learning** en 2-3 passes — on dépense le budget sur les **cas ambigus** (uncertainty sampling), le self-training propage, et on livre 4 M pseudo-labels **scorés en fiabilité**. Blueprint à redessiner en PowerPoint/Excalidraw :
+```
+                4 000 000 images NON labellisées
+                          │  Features ResNet50 + inférence  (compute ≈ 2 €)
+                          ▼
+ ┌── PASSE 1 — SEED CLINIQUE CIBLÉ ───────────────────────────────┐
+ │  quelques centaines de labels CLINIQUES, priorité aux CAS       │
+ │  AMBIGUS de notre PoC (les 463 « à revoir » du NB1 / zone       │
+ │  incertaine) = uncertainty sampling      ── part du budget      │
+ └────────────────────────────────────────────────────────────────┘
+                          │  ré-entraînement sur le seed
+                          ▼
+   SELF-TRAINING PROGRESSIF (seuils de confiance décroissants)
+     couvre ~97 % du volume   →  ~3 880 000 img auto-labellisées
+     (mesuré NB2 : 93 % strict / 97,2 % progressif ; ≥ 97 % avec le seed)
+                          │  reste ambigu ~3 %
+                          ▼
+                ~120 000 cas encore incertains
+                          │
+ ┌── PASSE 2 — 2e LABELLISATION CIBLÉE ───────────────────────────┐
+ │  quelques centaines de labels sur le résidu le plus informatif  │
+ │                                          ── reste du budget     │
+ └────────────────────────────────────────────────────────────────┘
+                          │  ré-entraînement final
+                          ▼
+   LIVRAISON : 4 000 000 pseudo-labels + SCORE DE FIABILITÉ
+     • grande majorité HAUTE fiabilité (auto-confiant + propagé)
+     • ~1 000 graines EXPERTES cliniques (cas durs, quelques centaines/passe)
+     • résidu FAIBLE fiabilité : marqué, NON forcé
+   Budget : ~5 000 € (≈ 1 000 labels cliniques à ~5 €, en 2-3 passes) + 2 € compute
+   ↻ 1 à 3 passes — même principe (boucle active learning)
+```
+- **Script** : « La question de Clara, frontalement : passer de 4 millions d'images **non** labellisées à 4 millions **labellisées** pour 5 000 € — possible ? Oui, avec une **boucle d'active learning** en deux ou trois passes. Features plus inférence — **~2 € de compute** — donnent à chaque image un score. **Passe 1 : je dépense une partie du budget sur un seed clinique CIBLÉ** — quelques centaines de labels de radiologue, mais pas n'importe lesquels : **les cas ambigus de mon travail**, ceux que le modèle ne tranche pas. C'est de l'**uncertainty sampling** : on annote là où ça fait le plus progresser le modèle. Je ré-entraîne, puis **self-training progressif** : il couvre **~97 % du volume** — et ça, c'est **mesuré** dans mon NB2, 97,2 %. Reste **~3 %, environ 120 000 cas** incertains. **Passe 2 : deuxième labellisation ciblée** sur ce résidu, avec le reste du budget, puis ré-entraînement final. À l'arrivée : **4 millions de pseudo-labels, chacun avec un score de fiabilité**, la grande majorité en **haute fiabilité** — et ce taux est **optimisé** justement parce que j'ai mis l'argent sur les cas durs. L'humain n'aura touché que **~0,02 % des images**. Une passe ou trois, le principe est le même : **on ne paie que les cas qui font progresser le modèle, le reste se propage**. »
+- **Transition** : « Donc faisable — à condition d'assumer une livraison de pseudo-labels **tiérés par fiabilité**, pas 4 millions de labels cliniques. »
+- **Design** : sablier + **flèche de boucle** (retour active learning). Code couleur : seed clinique **rouge** (cas ambigus), self-training **bleu**, livraison **verte tiérée par fiabilité**. Deux chiffres-chocs : **« ~0,02 % annotés à la main »** et **« 97 % couverts par self-training (mesuré) »**. Marque bien le **résidu faible fiabilité non forcé** — c'est ce qui rend la promesse honnête. ⚠️ Présenter les couvertures comme **mesurées** : **97,2 %** (progressif) / **93,3 %** (strict 0,95).
 
 ### Slide 11 — Choix techniques ↔ contraintes métier
 - **Visuel** : un **tableau** à 3 colonnes : *Choix technique* | *Contrainte métier adressée* | *Bénéfice*.
@@ -160,7 +205,7 @@
 - **« Pourquoi le semi-supervisé ne domine pas ? »**
   → Baseline déjà forte grâce au transfer learning **+** pseudo-labels encore imparfaits. Sur 3 splits, le semi-supervisé augmente le recall moyen (**0,978 vs 0,911**) mais baisse en precision/accuracy/F1 ; c'est une piste pour réduire les faux négatifs, pas encore un gain global établi.
 - **« Pourquoi ne pas itérer jusqu'à pseudo-labéliser presque tout ? »**
-  → Je l'ai testé en outer CV 5 folds sanctuarisée. À seuil strict **0,95**, le self-training couvre **87,3 %** du pool sans gain net ; avec seuils progressifs, il couvre **95-96 %**, mais l'accuracy/F1/recall baissent. Les derniers cas sont les plus ambigus : ils doivent aller vers l'annotation experte.
+  → Je l'ai testé en outer CV 5 folds sanctuarisée. À seuil strict **0,95**, le self-training couvre **93,3 %** du pool sans gain net ; avec seuils progressifs, il couvre **97,2 %**, mais l'accuracy/F1/recall baissent. Les derniers cas sont les plus ambigus : ils doivent aller vers l'annotation experte.
 - **« Pourquoi pas FixMatch / MixMatch / Mean Teacher / GAN semi-supervisé ? »**
   → Ce sont de bonnes pistes R&D, vues dans les ressources de cours, mais elles demandent des augmentations fortes calibrées pour l'IRM et une validation plus coûteuse. Pour ce livrable, le cahier des charges demande surtout features pré-entraînées, clustering, ARI et comparaison semi-supervisée. J'ai donc poussé les méthodes les plus alignées avec le problème métier : consensus, LabelSpreading et self-training leakage-safe.
 - **« Ton test fait 30 images, c'est fiable ? »**
@@ -181,5 +226,5 @@
 - [ ] Recommandations techniques pour le déploiement à grande échelle (4 M images, 5 000 €) → slides 9-10
 - [ ] Lien choix techniques ↔ contraintes métier (volume, budget, temps) → slide 11
 - [ ] Arguments préparés pour justifier choix techniques **et** métier → section 4
-- [ ] Cohérence résultats notebooks ↔ recommandations → mêmes chiffres partout (ARI clustering 0.535, ARI consensus 0.875, self-training 87,3 %, recall semi 1.00, 0,00125 €/image)
+- [ ] Cohérence résultats notebooks ↔ recommandations → mêmes chiffres partout (ARI clustering 0.535, ARI consensus 0.875, self-training 93,3 %/97,2 %, recall semi 1.00, 0,00125 €/image)
 - [ ] ≤ 15 slides (14 + annexes) · durée 15 min (±5)
